@@ -1,0 +1,98 @@
+{
+  // Nombre que aparece en la lista de Dev Containers. Se resuelve al abrir.
+  "name": "${localWorkspaceFolderBasename}",
+
+  // Orquestación: usamos docker-compose que está en la carpeta raíz del repo
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app-dev",
+
+  // runServices: lista de servicios que deseamos arrancar junto al contenedor.
+  // - Mantén "db" y "app-dev" por defecto.
+  // - Para activar un servicio opcional, descomenta su línea aquí y en docker-compose.yml.
+  "runServices": [
+    "db",
+    "app-dev"
+    // "timescaledb",     // Alternativa a 'db' para series de tiempo (TimescaleDB, PG18)
+    // "prefect-server",  // Orquestación/Plataforma de flujos (Prefect 3)
+    // "mlflow",          // Tracking de modelos (MLflow)
+    // "reflex",          // Frontend web runtime (Reflex)
+    // "flet",            // Frontend desktop/mobile (Flet)
+    // "nginx"            // Reverse proxy / gateway
+  ],
+
+  // Al cerrar VS Code, paramos el compose (no lo eliminamos)
+  "shutdownAction": "stopCompose",
+
+  // ------------------------------------------------------------
+  // IMPORTANT: NO incluimos "workspaceMount" aquí.
+  // - El montaje del código se gestiona desde docker-compose.yml (recomendado).
+  // - Tener workspaceMount + volumen en docker-compose provoca conflictos en Windows.
+  // ------------------------------------------------------------
+
+  // Ruta dentro del contenedor donde VS Code abrirá la carpeta.
+  // Debe coincidir con el working_dir / volumen definido en docker-compose.
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "customizations": {
+    "vscode": {
+      // ------------------------------------------------------------
+      // Configs de editor (ajusta según tu preferencia)
+      // ------------------------------------------------------------
+      "settings": {
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        // Intérprete Python esperado dentro del workspace montado
+        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.inlayHints.variableTypes": true,
+        "python.analysis.inlayHints.functionReturnTypes": true,
+        "editor.wordWrap": "on",
+        "workbench.iconTheme": "material-icon-theme"
+      },
+
+      // ------------------------------------------------------------
+      // Extensiones recomendadas / dependencias explícitas
+      // ------------------------------------------------------------
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.vscode-python-envs",            // requerida por ms-python
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.vscode-jupyter-slideshow",    // requerida por jupyter
+        "tamasfe.even-better-toml",
+        "christian-kohler.path-intellisense",
+        "pkief.material-icon-theme",
+        "sst-dev.opencode",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
+      ]
+    }
+  },
+
+  // Usuario dentro del contenedor (root para simplicidad en dev)
+  "remoteUser": "root",
+
+  // Puertos que queremos exponer automáticamente en el host
+  "forwardPorts": [5432],
+  "portsAttributes": {
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // ------------------------------------------------------------
+  // postCreateCommand: instalación inicial de dependencias con `uv`.
+  // - Si hay pyproject.toml + uv.lock -> sync --locked
+  // - Si hay requirements.txt -> inicializa uv y añade requirements
+  // - Si NO hay ninguno (plantilla nueva) -> inicializa uv (no falla)
+  // ------------------------------------------------------------
+  "postCreateCommand": "sh -lc 'if [ -f pyproject.toml ]; then if [ -f uv.lock ]; then uv sync --locked; else uv lock && uv sync; fi; elif [ -f requirements.txt ]; then uv init --no-package --no-workspace . && rm -f main.py && uv add -r requirements.txt; else echo \"Plantilla nueva detectada. Inicializando proyecto con uv...\"; uv init --no-package --no-workspace . && rm -f main.py; fi'"
+}

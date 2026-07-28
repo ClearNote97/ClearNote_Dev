@@ -1,0 +1,51 @@
+# =============================================================================
+# ClearNote_Dev - .gitignore
+# =============================================================================
+
+# --- ENTORNO Y SECRETOS ---
+.env
+secrets/*
+
+# --- PYTHON ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+dist/
+build/
+
+# --- UV ---
+uv.lock         # Opcional: versionar si quieres builds reproducibles en equipo
+
+# --- JUPYTER ---
+.ipynb_checkpoints/
+*.ipynb~
+
+# --- DATOS (Nunca versionar datos reales o pesados) ---
+data/storage/
+data/tests/*.csv
+data/tests/*.xlsx
+data/tests/*.pdf
+
+# --- MLFLOW ---
+data/storage/mlmodels/
+mlruns/
+
+# --- BASE DE DATOS LOCAL ---
+*.sqlite
+*.db
+
+# --- SISTEMA OPERATIVO ---
+.DS_Store
+Thumbs.db
+
+# --- IDEs ---
+.idea/
+*.swp
+*.swo
+
+# --- LOGS ---
+*.log
+logs/
