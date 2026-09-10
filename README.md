@@ -1,252 +1,106 @@
-# 🐍 Plantilla Dev Container para Data Analysis en Python — ClearNote Py DA
+# 🏛️ ClearNote_Dev — Plantilla para desarrollo de aplicaciones (Spec-Driven)
 
-Bienvenido a **ClearNote Py DA**, una plantilla reproducible, ligera y portable para proyectos de análisis de datos en Python usando **Visual Studio Code + Dev Containers + Docker + uv**.
+Plantilla **insignia** para construir **aplicaciones full-stack en Python** de forma reproducible y portable
+(**VS Code + Dev Containers + Docker + `uv`**), siguiendo **Spec-Driven Development (SDD)**: el diseño y la
+documentación guían el código, no al revés.
 
-Esta plantilla está pensada para trabajar con un entorno aislado y consistente, sin depender de instalaciones manuales en el sistema anfitrión.
+> **¿Cómo se colabora con un agente de IA en este repo?** Eso vive en el contrato **`README_AGENTS.md`**
+> (agnóstico de herramienta). Este archivo es *qué es el proyecto y cómo está organizado*.
 
-## 🎯 Propósito
+> ⚠️ **En construcción:** este README documenta hoy la **metodología** y la **estructura**. Las secciones de
+> *instalación* y *especificaciones técnicas* (stack, PostgreSQL, `docker-compose`) se completan tras cerrar el stack.
 
-Esta plantilla está diseñada para:
+---
 
-- Ejecutar proyectos de análisis de datos **sin instalar dependencias directamente en tu máquina**
-- Trabajar con archivos `.py` y `.ipynb` de forma interactiva
-- Mantener un entorno reproducible usando **Docker** y **Dev Containers**
-- Gestionar dependencias con **uv**, un gestor moderno y rápido para proyectos Python
-- Facilitar la transición desde un flujo clásico con `requirements.txt` hacia uno más moderno con `pyproject.toml` + `uv.lock`
-- Reducir problemas de permisos en carpetas sincronizadas o montadas desde el host
+## 🧭 Filosofía: Spec-Driven Development
 
-## 🧱 Estructura del entorno
+**Invariante raíz:** el *spec* es la **fuente de verdad**; el código es su **implementación**. Nada se construye
+sin spec; nada está "hecho" hasta que cumple su spec y pasa sus criterios de aceptación. El flujo es
+**unidireccional hacia abajo** — si algo cambia, entra por el spec.
 
-### Contenedor base
+**Los 5 niveles** (cada uno con su *gate* de aprobación antes de bajar al siguiente):
 
-- **Imagen base**: `python:3.14.5-slim-bookworm`
-- **Paquetes del sistema**:
-  - `build-essential`
-  - `ca-certificates`
+| # | Nivel | Responde | Vive en |
+|---|---|---|---|
+| 1 | **Constitución** | ¿quiénes somos, qué no se negocia? | `spec/constitution/` |
+| 2 | **Especificación** | el **QUÉ** y el **PORQUÉ** (criterios de aceptación) | `spec/features/` |
+| 3 | **Plan** | el **CÓMO** (arquitectura, modelo de datos, contratos) | `spec/` |
+| 4 | **Tareas** | descomposición accionable y testeable | `spec/features/NNN/` |
+| 5 | **Implementación** | construir + **verificar contra el spec** | `src/` + `tests/` |
 
-### Gestión de dependencias
+**`spec/` vs `docs/`** — la distinción clave:
 
-- **Gestor de paquetes/proyectos**: `uv`
-- **Versión fijada**: `0.11.13`
-- **Instalación de uv**: copiado desde la imagen oficial de Astral
-- **Entorno virtual del proyecto**: `.venv/`
+- **`spec/` = lo que DEBE ser verdad** (prescriptivo, precede al código; el **código** se verifica contra él).
+- **`docs/` = cómo y por qué es así** (descriptivo, narra lo construido; los **docs** se corrigen contra la realidad).
+- Si `spec ≠ código` → el código está mal. Si `docs ≠ realidad` → los docs están mal.
 
-### Editor y experiencia de desarrollo
+---
 
-- **Editor principal**: Visual Studio Code
-- **Extensiones preconfiguradas**:
-  - Python
-  - Pylance
-  - Ruff
-  - Jupyter
-  - Better TOML
-  - GitHub Copilot
-  - Path Intellisense
-  - Material Icon Theme
+## 📂 Estructura del proyecto
 
-### Intérprete configurado
-
-La plantilla apunta automáticamente al intérprete dentro del entorno virtual:
-
-```bash
-${workspaceFolder}/.venv/bin/python
+```
+ClearNote_Dev/
+├── spec/                        # 📜 lo que DEBE ser verdad (prescriptivo)
+│   ├── constitution/            #   Nivel 1 — la capa que gobierna todo
+│   │   ├── 00_purpose.md        #     por qué existe (misión + problema + para quién)
+│   │   ├── 01_principles.md     #     lo NO-negociable (spec-first, test-first, repro, seguridad…)
+│   │   ├── 02_scope.md          #     qué está dentro y qué NO
+│   │   └── 03_stack.md          #     fundación técnica y restricciones
+│   ├── roadmap.md               #   hacia dónde va (planificación viva)
+│   ├── contracts/               #   contratos TRANSVERSALES del sistema (OpenAPI, esquemas compartidos)
+│   └── features/                #   Niveles 2-4 — una carpeta por feature
+│       └── NNN_nombre/
+│           ├── spec.md          #     Nivel 2 — el QUÉ + criterios de aceptación
+│           ├── plan.md          #     Nivel 3 — el CÓMO
+│           └── tasks.md         #     Nivel 4 — descomposición
+│
+├── docs/                        # 📖 cómo y por qué es así (descriptivo)
+│   ├── architecture/            #   el sistema ensamblado, narrado (incluye doc del esquema DB)
+│   ├── decisions/               #   ADRs (un archivo por decisión) + maestro consolidado a futuro
+│   ├── business/                #   dominio: glosario, reglas de negocio explicadas
+│   ├── audit/                   #   revisiones de seguridad/dependencias, cumplimiento
+│   └── data-dictionary/         #   índice maestro + 1 archivo por tabla (subcarpeta por schema)
+│
+├── src/                         # ⚙️ Nivel 5 — implementación (cumple el spec)
+│   ├── backend/                 #   api (entrada) · schemas (DTOs) · use_cases (operación de negocio) · services (reutilizable)
+│   ├── database/                #   admin (gobernanza SQL) · app/{models,repositories} · analytics · migrations · session
+│   ├── frontend/                #   views · components · state · layout · services · visuals
+│   ├── analytics/               #   ml · statistics · tracking
+│   └── utils/                   #   helpers genéricos y portables
+│
+└── tests/                       # ✅ verifica el spec
+    ├── backend/ … database/ … frontend/ … analytics/ … utils/   (unit — espejo de src/)
+    └── acceptance/              #   "prueba de fuego" por feature (traza a spec/features/NNN)
 ```
 
-## ⚙️ Flujo de inicialización del proyecto
+### La lógica en una frase
 
-Cuando el contenedor se crea por primera vez, el `postCreateCommand` detecta automáticamente el tipo de proyecto y actúa en consecuencia:
+**Constitución** gobierna → **Spec** define el *qué* → **Plan** el *cómo* → **Tareas** descomponen →
+**`src/`** implementa → **`tests/`** verifica contra los criterios → **`docs/`** explica lo construido.
 
-### Caso 1: ya existe `pyproject.toml`
+### Un patrón que se repite: *granular + maestro*
 
-- Si también existe `uv.lock`:
-  - ejecuta `uv sync --locked`
-- Si no existe `uv.lock`:
-  - ejecuta `uv lock && uv sync`
+Todo lo que crece en cantidad usa la misma forma: **muchos archivos pequeños y enfocados + un maestro que los
+indexa**. Aplica a las **decisiones** (ADRs + maestro) y a los **diccionarios de datos** (uno por tabla + índice maestro).
 
-### Caso 2: todavía existe solo `requirements.txt`
+### Arquitectura limpia (el viaje de una petición)
 
-- ejecuta `uv init --no-package --no-workspace .`
-- elimina el archivo `main.py` generado por defecto
-- importa dependencias desde `requirements.txt` con:
-  - `uv add -r requirements.txt`
-
-### Caso 3: no existe ninguno
-
-- el proceso falla y muestra un mensaje indicando que falta `pyproject.toml` o `requirements.txt`
-
-## 📂 Filosofía de esta plantilla
-
-Esta plantilla adopta un enfoque de transición en dos etapas:
-
-### Etapa 1: compatibilidad con `requirements.txt`
-
-Ideal para proyectos existentes que todavía no migran por completo a `pyproject.toml`.
-
-Permite:
-
-- seguir usando la estructura tradicional
-- empezar a trabajar con `uv`
-- crear la base para migrar a lockfiles reproducibles
-
-### Etapa 2: migración total a `pyproject.toml` + `uv.lock`
-
-Recomendada para nuevos proyectos o para consolidar entornos reproducibles.
-
-Ventajas:
-
-- mejor manejo de dependencias
-- lockfile reproducible
-- flujo más moderno y mantenible
-- integración más natural con tooling actual de Python
-
-## 🚀 Instrucciones de uso
-
-### 1. Clona este repositorio
-
-```bash
-cd tu_ruta/
-git clone https://github.com/ClearNote97/ClearNote_Py_DA.git
-cd ClearNote_Py_DA
+```
+Frontend → api/ → schemas/ → use_cases/ → repositories/ → models/ + DB
+            (entrada) (valida)  (orquesta)   (persiste)     (tablas)
+                                    ↑
+                               services/  (lógica reutilizable propia de la app)
 ```
 
-### 2. Desvincula el repositorio original (opcional)
+Las **reglas de negocio** se aplican en 3 capas: el **modelo** (reglas de forma de un registro) → los
+**`use_cases`/`services`** (reglas reales, de proceso) → la **DB** (`CHECK`/RLS/triggers, como red de seguridad).
 
-Si quieres usar esta plantilla como base para un proyecto nuevo:
-
-```bash
-rm -rf .git
-```
-
-Luego renombra la carpeta:
-
-```bash
-cd ..
-mv ClearNote_Py_DA nuevo_nombre
-cd nuevo_nombre
-```
-
-Inicializa tu nuevo repositorio:
-
-```bash
-git init
-git add .
-git commit -m "Proyecto inicial basado en plantilla ClearNote Py DA"
-```
-
-Y conecta tu propio repositorio si lo deseas:
-
-```bash
-git remote add origin https://github.com/tu_usuario/tu_repositorio.git
-git push -u origin main
-```
-
-### 3. Abre la carpeta en Visual Studio Code
-
-Cuando VS Code detecte la configuración, selecciona:
-
-**Reopen in Container**
-
-### 4. Espera la inicialización automática
-
-Durante la creación del contenedor, la plantilla:
-
-- instala `uv`
-- detecta si trabajas con `pyproject.toml` o `requirements.txt`
-- prepara el entorno virtual `.venv`
-- instala o sincroniza dependencias
-
-No necesitas correr `pip install` manualmente.
-
-## 🧪 ¿Qué puedes hacer aquí?
-
-| Tarea | Disponible ✅ |
-|---|---|
-| Ejecutar scripts `.py` | ✅ |
-| Usar notebooks `.ipynb` | ✅ |
-| Ejecutar código por bloques | ✅ |
-| Formatear código automáticamente con Ruff | ✅ |
-| Organizar imports | ✅ |
-| Hacer análisis reproducibles | ✅ |
-| Depurar scripts con breakpoints | ✅ |
-| Gestionar dependencias con `uv` | ✅ |
-| Trabajar dentro de contenedor aislado | ✅ |
-
-## 🛠️ Configuración destacada
-
-### Formato y calidad de código
-
-La plantilla viene preparada para usar **Ruff** como formateador y herramienta de acciones sobre guardado.
-
-### Type checking
-
-Se usa:
-
-```json
-"python.analysis.typeCheckingMode": "basic"
-```
-
-### Intérprete del proyecto
-
-Se usa automáticamente el Python del entorno virtual `.venv`.
-
-## 📦 Sobre `uv` en esta plantilla
-
-`uv` reemplaza el uso tradicional de `pip` como comando principal del flujo de trabajo.
-
-### ¿Qué aporta?
-
-- mayor velocidad
-- manejo moderno de dependencias
-- lockfiles reproducibles
-- integración con proyectos Python actuales
-- mejor experiencia dentro de contenedores reproducibles
-
-### Importante
-
-Aunque la imagen base de Python pueda traer `pip` instalado internamente, esta plantilla **no lo usa como herramienta de trabajo**. Toda la gestión del entorno y dependencias se realiza con `uv`.
-
-## 🧹 Archivos importantes del proyecto
-
-### Deben versionarse
-
-- `README.md`
-- `.devcontainer/devcontainer.json`
-- `.devcontainer/Dockerfile`
-- `requirements.txt` o `pyproject.toml`
-- `uv.lock` cuando exista
-
-### No deben versionarse
-
-- `.venv/`
-- `__pycache__/`
-- `*.pyc`
-- `.env`
-
-Un `.gitignore` mínimo recomendado sería:
-
-```gitignore
-.env
-__pycache__/
-*.pyc
-.venv/
-```
-
-## 🔍 Recomendaciones
-
-- Si vas a mantener esta plantilla como base reproducible, documenta claramente en cada proyecto si estás en modo:
-  - `requirements.txt`
-  - o `pyproject.toml + uv.lock`
-- Si ya migraste a `uv.lock`, consérvalo en el repositorio
-- Si usas notebooks o ejecución interactiva, valida que `ipykernel` esté incluido dentro de tus dependencias del proyecto
+---
 
 ## ⚖️ Licencia
 
-Distribuido bajo la licencia [MIT](https://opensource.org/license/MIT). Puedes copiar, modificar y reutilizar libremente esta plantilla.
+Distribuido bajo licencia [MIT](https://opensource.org/license/MIT).
 
 ## ✍️ Autor
 
 **MSc. Nicolás Enrique Valencia Santiago**
-
-## 📝 Nota final
-
-Este `README.md` está pensado como base y debe adaptarse según el tipo de proyecto que se construya a partir de esta plantilla.
