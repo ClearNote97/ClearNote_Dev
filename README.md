@@ -4,11 +4,77 @@ Plantilla **insignia** para construir **aplicaciones full-stack en Python** de f
 (**VS Code + Dev Containers + Docker + `uv`**), siguiendo **Spec-Driven Development (SDD)**: el diseño y la
 documentación guían el código, no al revés.
 
-> **¿Cómo se colabora con un agente de IA en este repo?** Eso vive en el contrato **`README_AGENTS.md`**
-> (agnóstico de herramienta). Este archivo es *qué es el proyecto y cómo está organizado*.
+> **¿Cómo se colabora con un agente de IA en este repo?** El agente entra por **`AGENTS.md`** (que auto-lee) y
+> desde ahí llega al contrato **`README_AGENTS.md`** (agnóstico de herramienta). Este archivo es *qué es el
+> proyecto y cómo está organizado*.
 
-> ⚠️ **En construcción:** este README documenta hoy la **metodología** y la **estructura**. Las secciones de
-> *instalación* y *especificaciones técnicas* (stack, PostgreSQL, `docker-compose`) se completan tras cerrar el stack.
+---
+
+## ✅ Prerequisitos (en el host / WSL)
+
+Todo el entorno de dev vive en contenedores, así que en tu máquina solo necesitas **Docker + Docker Compose v2**
+y **VS Code con Dev Containers**. *(Nada de Python/uv en el host — eso va dentro del contenedor.)*
+
+| Requisito | Verifica | Si falta |
+|---|---|---|
+| **WSL 2** (Ubuntu) | `wsl -l -v` (en PowerShell) | `wsl --install -d Ubuntu` |
+| **Docker Engine** (en WSL) | `docker --version` | ↓ *Docker en WSL* |
+| **Docker Compose v2** | `docker compose version` → `v2.x+` | ↓ *Compose v2* |
+| **VS Code + Dev Containers** | extensión instalada | instala `ms-vscode-remote.remote-containers` |
+| **git** | `git --version` | `sudo apt-get install -y git` |
+
+> Alternativa: **Docker Desktop (Windows)** con integración WSL ya trae Docker + Compose v2; en ese caso salta los dos bloques de abajo.
+
+### Docker en WSL (Ubuntu, sin Docker Desktop)
+```bash
+sudo apt-get update && sudo apt-get install -y docker.io
+sudo usermod -aG docker "$USER"   # usar docker sin sudo (reabre la terminal después)
+sudo service docker start          # arranca el daemon (WSL no trae systemd por defecto)
+docker run --rm hello-world        # verificación
+```
+
+### Docker Compose v2 (plugin) — user-space, sin sudo
+```bash
+mkdir -p ~/.docker/cli-plugins
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+  -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+docker compose version             # debe responder v2.x+
+```
+> Alternativa con apt: `sudo apt-get install -y docker-compose-v2`.
+
+---
+
+## 🚀 Puesta en marcha (Quickstart)
+
+> Requiere los **Prerequisitos** de arriba (Docker + Compose v2 + Dev Containers).
+
+**1) Prepara entorno y secreto (una sola vez, en el host):**
+```bash
+cp -n .env.example .env
+[ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt
+```
+
+**2) Arranca.** Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
+
+- **Dev (recomendado) — _Reopen in Container_:** el `postCreateCommand` ejecuta **`init.sh` solo**. La DB ya está
+  arriba (por `depends_on`), así que aplica gobernanza + deps + migraciones. **No tienes que pegar nada.**
+- **Desde el host — un comando:**
+  ```bash
+  ./init.sh
+  ```
+
+Al terminar verás **`✅ ... listo`**.
+
+**Antes de un proyecto real, ajusta en `.env`** (secciones `[ PROYECTO NUEVO ]`): `APP_NAME`, `DB_NAME`, `DB_USER`.
+La contraseña vive en `secrets/db_password.txt` (nunca se versiona) — reemplázala por la tuya.
+
+> **`APP_ENV` es el interruptor maestro** (`development` por defecto). En **dev** (devcontainer) `init.sh` corre solo. En
+> **prod**, el despliegue lo hace tu orquestador y la gobernanza se aplica con
+> `APP_ENV=prod ./src/database/admin/run-admin.sh` (el secreto se lee de `/run/secrets/`). Ver `docs/architecture/gobernanza-db.md`.
+
+> **Estado 0 → N:** en un proyecto recién nacido, `init.sh` **genera** `pyproject.toml` + `uv.lock` (consolidan el
+> entorno reproducible: **commitéalos**). Detalle en el contrato `README_AGENTS.md` §9.
 
 ---
 
@@ -43,7 +109,7 @@ ClearNote_Dev/
 ├── spec/                        # 📜 lo que DEBE ser verdad (prescriptivo)
 │   ├── constitution/            #   Nivel 1 — la capa que gobierna todo
 │   │   ├── 00_purpose.md        #     por qué existe (misión + problema + para quién)
-│   │   ├── 01_principles.md     #     lo NO-negociable (spec-first, test-first, repro, seguridad…)
+│   │   ├── 01_principles.md     #     lo NO-negociable (spec-first, test-first, repro, seguridad, modularidad…)
 │   │   ├── 02_scope.md          #     qué está dentro y qué NO
 │   │   └── 03_stack.md          #     fundación técnica y restricciones
 │   ├── roadmap.md               #   hacia dónde va (planificación viva)
@@ -63,14 +129,26 @@ ClearNote_Dev/
 │
 ├── src/                         # ⚙️ Nivel 5 — implementación (cumple el spec)
 │   ├── backend/                 #   api (entrada) · schemas (DTOs) · use_cases (operación de negocio) · services (reutilizable)
-│   ├── database/                #   admin (gobernanza SQL) · app/{models,repositories} · analytics · migrations · session
+│   ├── database/                #   admin (SQL gobernanza) · app/{models,repositories} · analytics · migrations · connection · session
 │   ├── frontend/                #   views · components · state · layout · services · visuals
 │   ├── analytics/               #   ml · statistics · tracking
 │   └── utils/                   #   helpers genéricos y portables
 │
-└── tests/                       # ✅ verifica el spec
-    ├── backend/ … database/ … frontend/ … analytics/ … utils/   (unit — espejo de src/)
-    └── acceptance/              #   "prueba de fuego" por feature (traza a spec/features/NNN)
+├── tests/                       # ✅ verifica el spec
+│   ├── backend/ … database/ … frontend/ … analytics/ … utils/   (unit — espejo de src/)
+│   └── acceptance/              #   "prueba de fuego" por feature (traza a spec/features/NNN)
+│
+├── data/                        # 📦 datos (contenido no versionado): seeds · storage/{raw,processed,exports,mlmodels} · tests
+├── notebooks/                   # 🔬 exploración interactiva (se promueve a src/ o tests/)
+├── scripts/                     # 🔧 operación del proyecto (incluye nginx/)
+├── infra/                       # 🏗️ infraestructura: db/ (imagen Postgres 18 + pgaudit/pg_cron)
+├── secrets/                     # 🔐 secretos de desarrollo (contenido en .gitignore)
+│
+├── spec_agents/                 # 🤖 roster de agentes (spec agnóstico) → se materializa a .claude/ o .opencode
+├── init.sh                      # 🚀 un comando: build+up+wait → gobernanza → deps → migraciones
+├── docker-compose.yml           # db (imagen propia) + app-dev + servicios opcionales comentados
+├── AGENTS.md · CLAUDE.md        # entrada para agentes de IA → apuntan al contrato
+└── README_AGENTS.md             # contrato de colaboración (agnóstico de herramienta)
 ```
 
 ### La lógica en una frase
@@ -94,6 +172,26 @@ Frontend → api/ → schemas/ → use_cases/ → repositories/ → models/ + DB
 
 Las **reglas de negocio** se aplican en 3 capas: el **modelo** (reglas de forma de un registro) → los
 **`use_cases`/`services`** (reglas reales, de proceso) → la **DB** (`CHECK`/RLS/triggers, como red de seguridad).
+
+---
+
+## 🤖 Roster de agentes de IA (`spec_agents/`)
+
+Además del contrato de colaboración (`README_AGENTS.md`), la plantilla declara **qué agentes especialistas
+necesita**, de forma **agnóstica de herramienta**, en [`spec_agents/`](./spec_agents/) — es *SDD aplicado a los
+agentes*. El agente en sesión (Claude Code / Helix **o** OpenCode) **materializa** ese spec a su formato nativo
+(`.claude/agents/*.md` o `.opencode/agent/*.yaml`), reutilizando lo que el harness ya traiga.
+
+Tres familias, alineadas con los tipos de trabajo del contrato (§2):
+
+- **Núcleo (app):** `lead-architect` (coordina y decide el roster activo), `spec-author`, `backend-builder`,
+  `frontend-builder`, `migration-writer`, `test-writer`, `code-reviewer`, `security-auditor`, `db-governance-reviewer`, `doc-writer`.
+- **Datos / analítica (opt-in):** pipeline `analytics-lead` → `data-ingestor` → `data-cleaner` → `sql-analyst` →
+  `stats-analyst` / `ml-engineer` → `viz-specialist` → `insight-reporter`.
+- **Investigación (opt-in):** `literature-reviewer` + `academic-writer`.
+
+Se activan **bajo demanda** (lo decide `lead-architect`), nunca todos por defecto, y cada uno hereda guardrails
+universales (anti-sobrediseño, no-asumir, cero-secretos). Detalle: [`spec_agents/README.md`](./spec_agents/README.md).
 
 ---
 

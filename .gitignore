@@ -5,6 +5,7 @@
 # --- ENTORNO Y SECRETOS ---
 .env
 secrets/*
+!secrets/README.md
 
 # --- PYTHON ---
 __pycache__/
@@ -17,20 +18,26 @@ dist/
 build/
 
 # --- UV ---
-uv.lock         # Opcional: versionar si quieres builds reproducibles en equipo
+# uv.lock SÍ se versiona (builds reproducibles) → NO se ignora, a propósito.
+# (En .gitignore los comentarios van en su propia línea; un "#" al final de un
+#  patrón se toma como parte del patrón y lo rompe.)
 
 # --- JUPYTER ---
 .ipynb_checkpoints/
 *.ipynb~
 
 # --- DATOS (Nunca versionar datos reales o pesados) ---
-data/storage/
+# Ignora el CONTENIDO de storage pero conserva las carpetas y sus README
+# (para que la estructura viaje con la plantilla).
+data/storage/**
+!data/storage/**/
+!data/storage/**/README.md
+# Fixtures de tests: ignora datos pesados, conserva la carpeta y su README.
 data/tests/*.csv
 data/tests/*.xlsx
 data/tests/*.pdf
 
 # --- MLFLOW ---
-data/storage/mlmodels/
 mlruns/
 
 # --- BASE DE DATOS LOCAL ---

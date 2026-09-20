@@ -1,95 +1,61 @@
+"""Conversión de formatos de variables (fechas, enteros, decimales) en Polars.
+
+Cada función recibe las columnas a convertir y devuelve un DataFrame nuevo. Las columnas
+que no existen se ignoran. Las conversiones usan `strict=False` -> los valores que no
+convierten quedan en null (equivalente a "coerce").
+
+Nota: reescrito a Polars (la plantilla es Polars-first). Validar en el contenedor.
 """
-Módulo para cambio de formatos de variables clave.
-Convierte tipos de datos según requerimientos del análisis.
-"""
 
-"""
-Conversión de formatos de variables (fechas, floats, etc).
-"""
-import numpy as np
-import pandas as pd
+from datetime import datetime
+from typing import Literal
+
+import polars as pl
+
+TimestampUnit = Literal["ms", "s", "excel"]
 
 
-# # Formatear columnas específicas como formato adecuado
-# Formato de Fechas
-def format_dates(df, columns, date_format=None, timestamp_unit=None):
-    """
-    Convierte columnas a datetime detectando el tipo de dato y reportando errores para corrección manual.
-
-    Parámetros:
-    - df: DataFrame
-    - columns: lista de columnas a convertir
-    - date_format: formato de fecha para strings (opcional)
-    - timestamp_unit: si la columna es numérica, puede ser:
-        * 'ms' para milisegundos Unix timestamp
-        * 's' para segundos Unix timestamp
-        * 'excel' para números estilo Excel (días desde 1899-12-30)
-        * None para inferir automáticamente
-
-    Retorna:
-    - df con columnas convertidas a datetime cuando es posible
-    """
-    for col in columns:
-        if col in df.columns:
-            try:
-                if pd.api.types.is_numeric_dtype(df[col]):
-                    # Columna numérica: interpretar según timestamp_unit
-                    if timestamp_unit == "ms":
-                        df[col] = pd.to_datetime(df[col], unit="ms", errors="raise")
-                    elif timestamp_unit == "s":
-                        df[col] = pd.to_datetime(df[col], unit="s", errors="raise")
-                    elif timestamp_unit == "excel":
-                        df[col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(
-                            df[col], unit="D"
-                        )
-                    else:
-                        # Inferir unidad según valor máximo
-                        max_val = df[col].max()
-                        if max_val > 1e12:
-                            df[col] = pd.to_datetime(df[col], unit="ms", errors="raise")
-                        else:
-                            df[col] = pd.to_datetime(df[col], unit="s", errors="raise")
-                else:
-                    # Columna no numérica: convertir a string y parsear
-                    df[col] = df[col].astype(str).str.split().str[0]
-                    if date_format:
-                        df[col] = pd.to_datetime(
-                            df[col], format=date_format, errors="raise"
-                        )
-                    else:
-                        df[col] = pd.to_datetime(df[col], errors="raise")
-            except Exception as e:
-                print(f"Error formateando columna {col}: {e}")
-                # Mostrar valores problemáticos para corrección manual
-                invalid_mask = (
-                    ~df[col].apply(lambda x: pd.to_datetime(x, errors="coerce")).notna()
-                )
-                print(f"Valores problemáticos en columna {col}:")
-                print(df.loc[invalid_mask, col].unique())
-                # No modificar la columna para que puedas corregir manualmente
-    return df
+def _a_datetime(name: str, dtype: pl.DataType,
+                date_format: str | None, timestamp_unit: TimestampUnit | None) -> pl.Expr:
+    """Construye la expresión que convierte una columna a datetime."""
+    col = pl.col(name)
+    if dtype.is_numeric():
+        if timestamp_unit == "excel":
+            # días desde el epoch de Excel (1899-12-30)
+            return (pl.lit(datetime(1899, 12, 30)) + pl.duration(days=col)).alias(name)
+        # ms por defecto (heurística simple; pasar timestamp_unit='s' si aplica)
+        return pl.from_epoch(col, time_unit=(timestamp_unit or "ms")).alias(name)
+    # Texto -> datetime (si date_format es None, Polars infiere)
+    return col.str.to_datetime(format=date_format, strict=False).alias(name)
 
 
-# # Fromato de números
-# Enteros
-def format_int(df, columns):
-    for col in columns:
-        if col in df.columns:
-            try:
-                # Asignar la conversión para modificar el DataFrame
-                df[col] = df[col].astype("int64")
-            except Exception as e:
-                print(f"Error formateando columna {col}: {e}")
-    return df
+def format_datetime(df: pl.DataFrame, columns: list[str],
+                    date_format: str | None = None,
+                    timestamp_unit: TimestampUnit | None = None) -> pl.DataFrame:
+    """Convierte columnas a fecha y hora, **conservando la hora**."""
+    exprs = [_a_datetime(c, df.schema[c], date_format, timestamp_unit)
+             for c in columns if c in df.columns]
+    return df.with_columns(exprs) if exprs else df
 
 
-# Flotantes - Decimales
-def format_flt(df, columns):
-    for col in columns:
-        if col in df.columns:
-            try:
-                # Asignar la conversión para modificar el DataFrame
-                df[col] = df[col].astype("float64")
-            except Exception as e:
-                print(f"Error formateando columna {col}: {e}")
-    return df
+def format_dates(df: pl.DataFrame, columns: list[str],
+                 date_format: str | None = None,
+                 timestamp_unit: TimestampUnit | None = None) -> pl.DataFrame:
+    """Convierte columnas a fecha, **descartando la hora** (queda solo la fecha)."""
+    exprs = [_a_datetime(c, df.schema[c], date_format, timestamp_unit).dt.date().alias(c)
+             for c in columns if c in df.columns]
+    return df.with_columns(exprs) if exprs else df
+
+
+def format_int(df: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    """Convierte columnas a entero (`Int64`, nullable de forma nativa)."""
+    return df.with_columns(
+        [pl.col(c).cast(pl.Int64, strict=False) for c in columns if c in df.columns]
+    )
+
+
+def format_flt(df: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    """Convierte columnas a decimal (`Float64`)."""
+    return df.with_columns(
+        [pl.col(c).cast(pl.Float64, strict=False) for c in columns if c in df.columns]
+    )

@@ -1,45 +1,34 @@
+"""Limpieza de espacios en blanco en DataFrames de Polars.
+
+Primer paso del flujo: normaliza nombres de columna y celdas de texto, convierte cadenas
+vacías en null y elimina filas totalmente vacías. No modifica el DataFrame original (Polars
+es inmutable: cada operación devuelve uno nuevo).
+
+Nota: reescrito a Polars (la plantilla es Polars-first). Validar en el contenedor.
 """
-Módulo para limpieza de espacios en blanco en DataFrames.
-Primer paso del flujo de procesamiento de datos.
-"""
 
-"""
-Limpieza de espacios en blanco en DataFrames.
-"""
-import re
-import numpy as np
+import polars as pl
 
 
-def limpiar_espacios_en_blanco(df):
-    df = df.copy()  # Crear una copia para no modificar el original directamente
+def limpiar_espacios_en_blanco(df: pl.DataFrame) -> pl.DataFrame:
+    """Normaliza espacios en nombres de columna y en celdas de texto.
 
-    # Limpiar espacios en blanco en los nombres de las columnas
-    df.columns = [
-        col.strip() if isinstance(col, str) else "" if col is None else col
-        for col in df.columns
-    ]
+    - Recorta extremos y colapsa espacios internos en los nombres de columna.
+    - Hace lo mismo en las celdas de texto (columnas String).
+    - Convierte cadenas vacías en null y descarta las filas completamente nulas.
+    """
+    # Nombres de columna: colapsar espacios internos + recortar extremos
+    df = df.rename({c: " ".join(c.split()) for c in df.columns})
 
-    # 🔧 CORREGIDO: usar re.sub() en lugar de .replace() con regex
-    df.columns = [
-        re.sub(r"^\s+|\s+$", "", col) if isinstance(col, str) else col
-        for col in df.columns
-    ]
+    # Celdas de texto: colapsar espacios, recortar extremos y cadena vacía -> null
+    df = df.with_columns(
+        pl.col(pl.String)
+        .str.replace_all(r"\s+", " ")
+        .str.strip_chars()
+        .replace("", None)
+    )
 
-    # Reemplazar múltiples espacios/saltos de línea internos por un solo espacio
-    df.columns = [
-        re.sub(r"\s+", " ", col) if isinstance(col, str) else col for col in df.columns
-    ]
-
-    # Eliminar espacios al inicio y final en todos los valores del DataFrame (celdas)
-    df = df.replace(r"^\s+|\s+$", "", regex=True)
-
-    # Reemplazar múltiples espacios internos por un solo espacio
-    df = df.replace(r"\s+", " ", regex=True)
-
-    # Reemplazar cadenas vacías por NaN para facilitar manejo de datos faltantes
-    df = df.replace("", np.nan)
-
-    # Eliminar filas que estén completamente vacías (todos los valores NaN)
-    df = df.dropna(how="all")
+    # Descartar filas totalmente nulas
+    df = df.filter(~pl.all_horizontal(pl.all().is_null()))
 
     return df

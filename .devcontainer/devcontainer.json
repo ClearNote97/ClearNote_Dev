@@ -6,6 +6,11 @@
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app-dev",
 
+  // initializeCommand (HOST, antes de levantar): vincula APP_NAME al nombre de la carpeta,
+  // para que el mount (${APP_NAME}) y workspaceFolder (${localWorkspaceFolderBasename}) NUNCA diverjan.
+  // Crea .env desde el ejemplo si falta. Requiere shell POSIX en el host (WSL/Linux/macOS).
+  "initializeCommand": "bash -lc 'cp -n .env.example .env 2>/dev/null || true; d=$(basename \"$PWD\"); sed -i -E \"s|^APP_NAME=[^#]*|APP_NAME=$d  |\" .env 2>/dev/null || true'",
+
   // runServices: lista de servicios que deseamos arrancar junto al contenedor.
   // - Mantén "db" y "app-dev" por defecto.
   // - Para activar un servicio opcional, descomenta su línea aquí y en docker-compose.yml.
@@ -89,10 +94,10 @@
   },
 
   // ------------------------------------------------------------
-  // postCreateCommand: instalación inicial de dependencias con `uv`.
-  // - Si hay pyproject.toml + uv.lock -> sync --locked
-  // - Si hay requirements.txt -> inicializa uv y añade requirements
-  // - Si NO hay ninguno (plantilla nueva) -> inicializa uv (no falla)
+  // postCreateCommand: en dev, init.sh deja el entorno LISTO (autodetecta contexto):
+  // - deps (uv, Estado 0/N) + gobernanza (admin) + migraciones (alembic).
+  // - dentro del devcontainer salta el compose up (la DB ya esta arriba).
+  // - solo en dev (APP_ENV); en prod la gobernanza va por run-admin.sh.
   // ------------------------------------------------------------
-  "postCreateCommand": "sh -lc 'if [ -f pyproject.toml ]; then if [ -f uv.lock ]; then uv sync --locked; else uv lock && uv sync; fi; elif [ -f requirements.txt ]; then uv init --no-package --no-workspace . && rm -f main.py && uv add -r requirements.txt; else echo \"Plantilla nueva detectada. Inicializando proyecto con uv...\"; uv init --no-package --no-workspace . && rm -f main.py; fi'"
+  "postCreateCommand": "bash init.sh"
 }

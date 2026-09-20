@@ -13,12 +13,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 # - git/openssh-client: Para control de versiones y conexión a repositorios privados.
 # - ca-certificates: Para conexiones seguras HTTPS.
 # - curl: Herramienta de red para auditoría, healthchecks y descarga de archivos.
+# - postgresql-client: cliente psql para consultas ad-hoc y para correr run-admin.sh desde app-dev.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     git \
     openssh-client \
     curl \
+    postgresql-client \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Instalación de 'uv': el gestor de paquetes de alto rendimiento (Escrito en Rust).

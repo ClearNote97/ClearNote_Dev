@@ -6,10 +6,25 @@
 services:
   # 1. BASE DE DATOS (PostgreSQL 18.4)
   db:
-    image: postgres:18.4-bookworm
+    # Imagen PROPIA: Postgres 18 + extensiones de gobernanza (pgaudit, pg_cron).
+    # La imagen oficial NO las trae; se instalan en infra/db/Dockerfile (ver B11).
+    build:
+      context: ./infra/db
+      dockerfile: Dockerfile
+    # Sin `image:` explícito: Compose nombra la imagen construida en minúsculas
+    # (<proyecto>-db). Un tag derivado de APP_NAME con mayúsculas sería inválido
+    # para Docker ("repository name must be lowercase").
     container_name: ${APP_NAME:-clearnote}_db
     restart: unless-stopped
     env_file: [.env]
+    # Precarga de librerías al arrancar el servidor. Sin esto,
+    # `CREATE EXTENSION pgaudit / pg_cron` falla (deben cargarse antes de aceptar conexiones).
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements,pgaudit,pg_cron"
+      - "-c"
+      - "cron.database_name=${DB_NAME:-postgres}"
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_DB: ${DB_NAME:-postgres}
@@ -37,6 +52,8 @@ services:
   # Usar cuando el proyecto requiera series de tiempo, datos IoT o analítica temporal.
   # IMPORTANTE: Comenta el servicio 'db' de arriba antes de descomentar este.
   # timescaledb:
+  #   # NOTA: si usas la gobernanza (pgaudit/pg_cron), extiende esta imagen igual que
+  #   #       infra/db/Dockerfile y replica el `command:` con shared_preload_libraries.
   #   image: timescale/timescaledb-ha:pg18
   #   container_name: ${APP_NAME:-clearnote}_timescaledb
   #   restart: unless-stopped
@@ -179,5 +196,6 @@ volumes:
 
 secrets:
   db_password:
-    # Ruta al archivo de contraseña física en tu host (Windows)
+    # Ruta al archivo de contraseña en tu host (desarrollo).
+    # En producción, el secreto lo inyecta el orquestador, no este archivo.
     file: ./secrets/db_password.txt
