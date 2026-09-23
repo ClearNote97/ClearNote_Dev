@@ -49,33 +49,59 @@ docker compose version             # debe responder v2.x+
 
 > Requiere los **Prerequisitos** de arriba (Docker + Compose v2 + Dev Containers).
 
-**1) Obtén la plantilla y arranca tu historia en limpio (una sola vez):**
+### 1. Clona la plantilla
+
+**Por HTTPS:**
 ```bash
-# Clónala con el nombre de TU proyecto (minúsculas-con-guiones):
-git clone https://github.com/ClearNote97/ClearNote_Dev.git mi-proyecto
-cd mi-proyecto
+git clone https://github.com/ClearNote97/ClearNote_Dev.git
+cd ClearNote_Dev
+```
 
-# Desvincula el historial de la plantilla y empieza el tuyo:
+**Por SSH:**
+```bash
+git clone git@github.com:ClearNote97/ClearNote_Dev.git
+cd ClearNote_Dev
+```
+
+### 2. Elimina el historial de la plantilla
+
+Esto es una **plantilla, no un proyecto en sí**: soltar el historial git que trae es **obligatorio**.
+```bash
 rm -rf .git
-git init -b main
-git add .
-git commit -m "chore: proyecto inicial desde plantilla ClearNote_Dev"
+```
 
-# Conéctalo a TU repositorio remoto:
-git remote add origin https://github.com/<tu-usuario>/<tu-repo>.git
+### 3. Renombra la carpeta
+
+Ponle el nombre de tu proyecto (reemplaza `mi-proyecto`, en minúsculas-con-guiones):
+```bash
+cd ..
+mv ClearNote_Dev mi-proyecto
+cd mi-proyecto
+```
+> 💡 **Ese nombre es tu `APP_NAME`.** Al hacer _Reopen in Container_, el `initializeCommand` lo toma automáticamente
+> del nombre de la carpeta y lo escribe en `.env` — así el mount (`${APP_NAME}`) y el workspace nunca divergen.
+
+### 4. Inicializa tu propio repositorio *(opcional)*
+```bash
+git init
+git add .
+git commit -m "Proyecto inicial basado en la plantilla ClearNote_Dev"
+```
+Y, si quieres conectarlo a un remoto:
+```bash
+git remote add origin https://github.com/tu_usuario/tu_repositorio.git
 git push -u origin main
 ```
-> 💡 **El nombre de la carpeta es tu `APP_NAME`.** Al hacer _Reopen in Container_, el `initializeCommand` lo toma
-> automáticamente del nombre de la carpeta (`mi-proyecto`) y lo escribe en `.env` — así el mount y el workspace nunca
-> divergen. Elígelo bien (minúsculas-con-guiones) desde el clone.
 
-**2) Prepara entorno y secreto (una sola vez, en el host):**
+### 5. Prepara entorno y secreto *(una sola vez, en el host)*
 ```bash
 cp -n .env.example .env
 [ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt
 ```
 
-**3) Arranca.** Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
+### 6. Arranca
+
+Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
 
 - **Dev (recomendado) — _Reopen in Container_:** el `postCreateCommand` ejecuta **`init.sh` solo**. La DB ya está
   arriba (por `depends_on`), así que aplica gobernanza + deps + migraciones. **No tienes que pegar nada.**
