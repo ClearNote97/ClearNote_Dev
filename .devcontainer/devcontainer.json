@@ -8,8 +8,9 @@
 
   // initializeCommand (HOST, antes de levantar): vincula APP_NAME al nombre de la carpeta,
   // para que el mount (${APP_NAME}) y workspaceFolder (${localWorkspaceFolderBasename}) NUNCA diverjan.
-  // Crea .env desde el ejemplo si falta. Requiere shell POSIX en el host (WSL/Linux/macOS).
-  "initializeCommand": "bash -lc 'cp -n .env.example .env 2>/dev/null || true; d=$(basename \"$PWD\"); sed -i -E \"s|^APP_NAME=[^#]*|APP_NAME=$d  |\" .env 2>/dev/null || true'",
+  // Crea .env desde el ejemplo si falta y GENERA el secreto de la DB si no existe (docker-compose
+  // lo monta como bind y falla si el archivo no está). Requiere shell POSIX + openssl en el host (WSL/Linux/macOS).
+  "initializeCommand": "bash -lc 'cp -n .env.example .env 2>/dev/null || true; d=$(basename \"$PWD\"); sed -i -E \"s|^APP_NAME=[^#]*|APP_NAME=$d  |\" .env 2>/dev/null || true; mkdir -p secrets; [ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt'",
 
   // runServices: lista de servicios que deseamos arrancar junto al contenedor.
   // - Mantén "db" y "app-dev" por defecto.
