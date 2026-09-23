@@ -15,6 +15,12 @@ services:
     # (<proyecto>-db). Un tag derivado de APP_NAME con mayúsculas sería inválido
     # para Docker ("repository name must be lowercase").
     container_name: ${APP_NAME:-clearnote}_db
+    # ── INTERRUPTOR DE DB ──────────────────────────────────────────────────────
+    # Este servicio SOLO arranca si el profile "db" está activo. Se controla con
+    # una sola variable en .env:  COMPOSE_PROFILES=db  (enciende) | vacío (sin DB).
+    # Un proyecto sin base de datos deja COMPOSE_PROFILES vacío y NADA más cambia:
+    # el servicio no se crea y compose no da "no such service".
+    profiles: ["db"]
     restart: unless-stopped
     env_file: [.env]
     # Precarga de librerías al arrancar el servidor. Sin esto,
@@ -171,6 +177,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+        # required:false → si el profile "db" está apagado (proyecto sin DB),
+        # app-dev arranca igual. Sin esto, depender de un servicio con profile
+        # lo forzaría a encenderse y el interruptor no serviría de nada.
+        required: false
     # 🔥 SOLUCIÓN A CARPETAS VACÍAS:
     # Montamos la raíz (.) en la ruta dinámica que el Dockerfile espera.
     # Al definirlo aquí, Docker manda sobre VS Code y asegura la visibilidad.

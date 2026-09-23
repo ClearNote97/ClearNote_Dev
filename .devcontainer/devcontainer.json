@@ -12,11 +12,13 @@
   // lo monta como bind y falla si el archivo no está). Requiere shell POSIX + openssl en el host (WSL/Linux/macOS).
   "initializeCommand": "bash -lc 'cp -n .env.example .env 2>/dev/null || true; d=$(basename \"$PWD\"); sed -i -E \"s|^APP_NAME=[^#]*|APP_NAME=$d  |\" .env 2>/dev/null || true; mkdir -p secrets; [ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt'",
 
-  // runServices: lista de servicios que deseamos arrancar junto al contenedor.
-  // - Mantén "db" y "app-dev" por defecto.
-  // - Para activar un servicio opcional, descomenta su línea aquí y en docker-compose.yml.
+  // runServices: servicios que arrancan junto al devcontainer.
+  // - Solo "app-dev". El servicio "db" NO se nombra aquí a propósito: lo enciende el
+  //   PROFILE, no esta lista. Con COMPOSE_PROFILES=db en .env, app-dev (depends_on: db)
+  //   lo levanta solo; sin ese profile, app-dev arranca sin DB y compose NO da
+  //   "no such service". Así el modo con/sin DB es un ÚNICO switch (COMPOSE_PROFILES).
+  // - Los demás servicios opcionales se activan por su línea en docker-compose.yml.
   "runServices": [
-    "db",
     "app-dev"
     // "timescaledb",     // Alternativa a 'db' para series de tiempo (TimescaleDB, PG18)
     // "prefect-server",  // Orquestación/Plataforma de flujos (Prefect 3)

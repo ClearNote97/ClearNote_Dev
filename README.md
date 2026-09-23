@@ -119,6 +119,11 @@ La contraseña vive en `secrets/db_password.txt` (nunca se versiona) — reempl�
 > **prod**, el despliegue lo hace tu orquestador y la gobernanza se aplica con
 > `APP_ENV=prod ./src/database/admin/run-admin.sh` (el secreto se lee de `/run/secrets/`). Ver `docs/architecture/gobernanza-db.md`.
 
+> **¿Proyecto SIN base de datos?** (p. ej. una CLI/tool). Un **único interruptor** en `.env`: deja
+> **`COMPOSE_PROFILES=`** vacío. El servicio `db` no se crea (compose no da *"no such service"*), `app-dev`
+> arranca solo, e `init.sh` **detecta que no hay DB** y omite gobernanza + migraciones. No hay que comentar nada
+> en `docker-compose.yml` ni en `devcontainer.json`. Para reactivarla: `COMPOSE_PROFILES=db`.
+
 > **Estado 0 → N:** en un proyecto recién nacido, `init.sh` **genera** `pyproject.toml` + `uv.lock` (consolidan el
 > entorno reproducible: **commitéalos**). Detalle en el contrato `README_AGENTS.md` §9.
 

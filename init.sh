@@ -2,10 +2,11 @@
 # =============================================================================
 # init.sh — Deja el entorno de desarrollo LISTO (idempotente). AUTODETECTA modo:
 # =============================================================================
-#   • HOST (hay Docker CLI): build + up + espera DB sana + gobernanza + deps + migraciones.
-#   • DENTRO DEL DEVCONTAINER (sin Docker CLI; la DB ya la levantó VS Code por el
-#     depends_on): solo deps (idempotente) + gobernanza + migraciones.
+#   • HOST (hay Docker CLI): build + up + (si hay DB) gobernanza + deps + (si hay DB) migraciones.
+#   • DENTRO DEL DEVCONTAINER (sin Docker CLI): deps + (si hay DB) gobernanza + migraciones.
 # El modo se autodetecta. En dev, lo dispara el `postCreateCommand` del devcontainer.
+# La DB es OPCIONAL: si no hay una alcanzable (COMPOSE_PROFILES sin 'db', o un proyecto
+# sin base de datos), se OMITEN gobernanza y migraciones automáticamente — sin tocar nada.
 #
 # ENTORNO: solo desarrollo. Lo decide APP_ENV (dev por defecto; 'prod'/'production'
 #   aborta). En prod la gobernanza se aplica con:
@@ -49,14 +50,36 @@ deps_uv() {
   fi
 }
 
+# --- ¿Este proyecto tiene DB activa? (auto-detección) ------------------------
+# Responde a: servicio `db` comentado/eliminado, profile "db" apagado
+# (COMPOSE_PROFILES sin 'db'), o DB no levantada. Si no hay DB, se saltan
+# gobernanza y migraciones — el "modo sin DB" no exige tocar este script.
+uses_db() {
+  if [ -f /.dockerenv ] || ! command -v docker >/dev/null 2>&1; then
+    # DEVCONTAINER: probamos el puerto de la DB (host:port del .env), resoluble por
+    # la red interna de Docker. Sin respuesta → no hay DB.
+    local h p
+    h="$(grep -E '^DB_HOST=' .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')"; h="${h:-db}"
+    p="$(grep -E '^DB_PORT=' .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')"; p="${p:-5432}"
+    timeout 3 bash -c ">/dev/tcp/$h/$p" 2>/dev/null
+  else
+    # HOST: ¿hay un contenedor del servicio 'db' en marcha?
+    [ -n "$($COMPOSE ps -q db 2>/dev/null)" ]
+  fi
+}
+
 # --- Autodetección de contexto -----------------------------------------------
 # Dentro de un contenedor existe /.dockerenv; en el host hay Docker CLI.
 if [ -f /.dockerenv ] || ! command -v docker >/dev/null 2>&1; then
-  # ===== MODO DEVCONTAINER =====  (la DB ya está arriba; no hay Docker CLI)
-  echo "▶ [devcontainer] DB ya arriba → deps + gobernanza + migraciones"
-  echo "  1/3  Dependencias (uv)…";      deps_uv
-  echo "  2/3  Gobernanza (admin)…";     ./src/database/admin/run-admin.sh
-  echo "  3/3  Migraciones (alembic)…";  uv run alembic upgrade head
+  # ===== MODO DEVCONTAINER =====  (no hay Docker CLI; VS Code ya levantó lo que toque)
+  echo "▶ [devcontainer] preparando entorno…"
+  echo "  • Dependencias (uv)…";          deps_uv
+  if uses_db; then
+    echo "  • Gobernanza (admin)…";       ./src/database/admin/run-admin.sh
+    echo "  • Migraciones (alembic)…";    uv run alembic upgrade head
+  else
+    echo "  • Sin DB → se omiten gobernanza y migraciones (proyecto sin base de datos)."
+  fi
   echo "✅ Entorno de desarrollo listo (modo devcontainer)."
   exit 0
 fi
@@ -65,12 +88,16 @@ fi
 echo "▶ 1/4  Construyendo imágenes y levantando servicios (espera DB sana)…"
 $COMPOSE up -d --build --wait
 
-echo "▶ 2/4  Aplicando gobernanza (admin/00..06) en la base de datos…"
-for f in src/database/admin/[0-9][0-9]_*.sql; do
-  echo "     • $(basename "$f")"
-  # ON_ERROR_STOP=1 → psql sale con error y `set -e` aborta el bootstrap.
-  $COMPOSE exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < "$f"
-done
+if uses_db; then
+  echo "▶ 2/4  Aplicando gobernanza (admin/00..06) en la base de datos…"
+  for f in src/database/admin/[0-9][0-9]_*.sql; do
+    echo "     • $(basename "$f")"
+    # ON_ERROR_STOP=1 → psql sale con error y `set -e` aborta el bootstrap.
+    $COMPOSE exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' < "$f"
+  done
+else
+  echo "▶ 2/4  Sin DB (profile 'db' apagado) → se omite la gobernanza."
+fi
 
 echo "▶ 3/4  Preparando dependencias de Python en app-dev (uv)…"
 $COMPOSE exec -T app-dev sh -lc '
@@ -82,8 +109,12 @@ $COMPOSE exec -T app-dev sh -lc '
     uv init --no-package --no-workspace . && rm -f main.py && uv add -r requirements.txt
   fi'
 
-echo "▶ 4/4  Aplicando migraciones (alembic upgrade head)…"
-$COMPOSE exec -T app-dev sh -lc 'uv run alembic upgrade head'
+if uses_db; then
+  echo "▶ 4/4  Aplicando migraciones (alembic upgrade head)…"
+  $COMPOSE exec -T app-dev sh -lc 'uv run alembic upgrade head'
+else
+  echo "▶ 4/4  Sin DB → se omiten las migraciones."
+fi
 
 # ── (opcional) SEEDS de DATOS, DESPUÉS de migraciones ────────────────────────
 # Para datos que dependan de tablas creadas por Alembic. Antes de activar, quita el
