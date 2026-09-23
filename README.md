@@ -49,13 +49,33 @@ docker compose version             # debe responder v2.x+
 
 > Requiere los **Prerequisitos** de arriba (Docker + Compose v2 + Dev Containers).
 
-**1) Prepara entorno y secreto (una sola vez, en el host):**
+**1) Obtén la plantilla y arranca tu historia en limpio (una sola vez):**
+```bash
+# Clónala con el nombre de TU proyecto (minúsculas-con-guiones):
+git clone https://github.com/ClearNote97/ClearNote_Dev.git mi-proyecto
+cd mi-proyecto
+
+# Desvincula el historial de la plantilla y empieza el tuyo:
+rm -rf .git
+git init -b main
+git add .
+git commit -m "chore: proyecto inicial desde plantilla ClearNote_Dev"
+
+# Conéctalo a TU repositorio remoto:
+git remote add origin https://github.com/<tu-usuario>/<tu-repo>.git
+git push -u origin main
+```
+> 💡 **El nombre de la carpeta es tu `APP_NAME`.** Al hacer _Reopen in Container_, el `initializeCommand` lo toma
+> automáticamente del nombre de la carpeta (`mi-proyecto`) y lo escribe en `.env` — así el mount y el workspace nunca
+> divergen. Elígelo bien (minúsculas-con-guiones) desde el clone.
+
+**2) Prepara entorno y secreto (una sola vez, en el host):**
 ```bash
 cp -n .env.example .env
 [ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt
 ```
 
-**2) Arranca.** Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
+**3) Arranca.** Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
 
 - **Dev (recomendado) — _Reopen in Container_:** el `postCreateCommand` ejecuta **`init.sh` solo**. La DB ya está
   arriba (por `depends_on`), así que aplica gobernanza + deps + migraciones. **No tienes que pegar nada.**
