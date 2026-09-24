@@ -20,6 +20,7 @@
 10. [Recordatorios firmes](#10-recordatorios-firmes-para-los-dos)
 11. [Estándar de conexión a SQL desde Python](#11-estándar-de-conexión-a-sql-desde-python-mío)
 12. [Tratamiento de las tablas materializadas — bitácora de jobs (estándar pendiente)](#12-tratamiento-de-las-tablas-materializadas--bitácora-de-ejecución-de-jobs-estándar-pendiente)
+13. [Acelerador opcional: mapa de código para agentes (`graft`)](#13-acelerador-opcional-mapa-de-código-para-agentes-graft)
 
 > **Secciones 1–10:** la **dinámica de trabajo** (agente ⇄ Dev Container). **Sección 11:** mi **estándar de código** para SQL. **Sección 12:** tratamiento de tablas materializadas. Las secciones 11–12 solo aplican cuando el proyecto se conecta a SQL (ver Eje 2 en §2).
 
@@ -422,6 +423,40 @@ Las **tablas materializadas** no se resuelven al consultarse como las vistas: la
 - **Por qué en la BD de negocio y no en el historial nativo del scheduler:** el historial nativo del Agent (`msdb`) suele exigir roles elevados (`SQLAgentReaderRole`/sysadmin) y **está restringido** para un login analítico (error 229 *EXECUTE denied*). Una bitácora en la propia capa de negocio la deja **legible por el login analítico**, sin depender del DBA.
 
 > Definición formal y esquema/nombre a fijar en la documentación del proyecto (`docs/`), enlazando con la doctrina de jobs y de nombres de procedimientos.
+
+---
+
+## 13. Acelerador opcional: mapa de código para agentes (`graft`)
+
+> _**OPCIONAL** — recomendación de optimización del trabajo con agentes de IA. **NO** forma parte de la plantilla:
+> no viene preinstalado, no es dependencia del proyecto, y cada quien decide si lo usa. Es herramienta **del desarrollador**._
+
+**El problema:** cada sesión, el agente arranca ciego y **re-explora** el repo antes de tocar nada — reads exploratorios que cuestan tiempo y tokens (justo lo que la doctrina de *brief antes de spawn* busca evitar).
+
+**Qué hace [`graft`](https://github.com/trailhq/graft):** construye **una vez** un grafo del código y lo escribe como **markdown enlazado** (un nodo por sistema/API/concepto). El agente **lee ese mapa** en vez de redescubrir. Es documentación **descriptiva auto-generada y siempre fresca** → complementa tu `docs/` (§7); **no** sustituye tus especificaciones prescriptivas ni este contrato.
+
+### Dónde corre — en el HOST, no en el contenedor
+`graft` es una herramienta de **archivos** (parsea con tree-sitter), no de runtime: no necesita Python, ni la DB, ni el contenedor. Como el workspace está **bind-mounted** en el contenedor (los ficheros son los mismos bytes en host y contenedor), el `graft/` que genera es visible **desde ambos lados a la vez**. Córrelo en **WSL, contra la raíz del repo** — sin `docker exec`.
+
+### Instalación — elige una (el dev decide)
+```bash
+# A) Temporal, sin instalación global (respeta la doctrina npm: nada global persistente):
+DO_NOT_TRACK=1 npx @nanonets/graft@<versión-fijada> init
+
+# B) Global, si lo usas a diario:
+npm install -g @nanonets/graft@<versión-fijada>
+DO_NOT_TRACK=1 graft init
+```
+> Fija la versión (`@x.y.z`), revisa su *release age* y verifica el publisher (`@nanonets`) antes de instalar.
+> Instálalo **fuera** del manifiesto del proyecto (es tooling del dev, no dependencia de la app).
+
+### Endurecimiento (seguridad)
+- **Default seguro = Pass 1** (estructural, tree-sitter): **sin LLM, sin API key, sin egress de código.** Cubre la mayor parte del valor.
+- **Pass 2** (resúmenes conceptuales) **envía código a un LLM** → úsalo **solo con decisión explícita**: modelo **local** preferido; con proveedor cloud, **solo con consentimiento del cliente** (en proyectos con confidencialidad, el código sale del entorno).
+- **Telemetría off:** `DO_NOT_TRACK=1` o `graft telemetry disable`.
+
+### Versionado del grafo
+Por defecto `graft` ignora `graft/`. Recomiendo lo contrario para conocimiento de equipo: **versiona los nodos** `graft/*.md` (viajan en el clone → el agente los lee al instante) y deja en `.gitignore` **solo el caché** `graft/.graph/`.
 
 ---
 
