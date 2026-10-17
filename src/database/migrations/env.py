@@ -41,6 +41,22 @@ target_metadata = SQLModel.metadata
 # El historial de migraciones vive en el schema `app` (no en `public`, que revocamos).
 VERSION_TABLE_SCHEMA = "app"
 
+# Schemas que posee SQLModel: autogenerate SOLO debe gestionar estos.
+# El medallion (bronze/silver/gold) y demás DDL a mano NO están en SQLModel.metadata;
+# sin este filtro, autogenerate los ve "ausentes del metadata" y **propone DROP**
+# de esas tablas — riesgo real de borrar el warehouse. (Lección de proyecto real.)
+MANAGED_SCHEMAS = {"app"}
+
+
+def _include_object(obj, name, type_, reflected, compare_to):
+    """Limita autogenerate a MANAGED_SCHEMAS. Tablas/columnas de otros schemas
+    (medallion, etc.) se ignoran → nunca se proponen para DROP."""
+    if type_ in ("table", "column"):
+        schema = getattr(obj, "schema", None)
+        if schema is not None and schema not in MANAGED_SCHEMAS:
+            return False
+    return True
+
 
 def run_migrations_offline() -> None:
     """Genera el SQL sin conectarse (modo --sql)."""
@@ -51,6 +67,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         version_table_schema=VERSION_TABLE_SCHEMA,
         include_schemas=True,
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -65,6 +82,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             version_table_schema=VERSION_TABLE_SCHEMA,
             include_schemas=True,
+            include_object=_include_object,
         )
         with context.begin_transaction():
             context.run_migrations()

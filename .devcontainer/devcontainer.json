@@ -6,11 +6,11 @@
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app-dev",
 
-  // initializeCommand (HOST, antes de levantar): vincula APP_NAME al nombre de la carpeta,
-  // para que el mount (${APP_NAME}) y workspaceFolder (${localWorkspaceFolderBasename}) NUNCA diverjan.
-  // Crea .env desde el ejemplo si falta y GENERA el secreto de la DB si no existe (docker-compose
-  // lo monta como bind y falla si el archivo no está). Requiere shell POSIX + openssl en el host (WSL/Linux/macOS).
-  "initializeCommand": "bash -lc 'cp -n .env.example .env 2>/dev/null || true; d=$(basename \"$PWD\"); sed -i -E \"s|^APP_NAME=[^#]*|APP_NAME=$d  |\" .env 2>/dev/null || true; mkdir -p secrets; [ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt'",
+  // initializeCommand (HOST, antes de levantar): deja .env y el secreto LISTOS antes del primer `up`.
+  // Fija APP_NAME = nombre de la carpeta; si DB_NAME/DB_USER siguen en placeholder deriva un slug del
+  // folder (el bautizo de la DB en el primer `up` es irreversible sin recrear el volumen); y genera el
+  // secreto de la DB si falta. Lógica en scripts/bootstrap-env.sh (idempotente). Requiere bash + openssl.
+  "initializeCommand": "bash scripts/bootstrap-env.sh",
 
   // runServices: servicios que arrancan junto al devcontainer.
   // - Solo "app-dev". El servicio "db" NO se nombra aquí a propósito: lo enciende el

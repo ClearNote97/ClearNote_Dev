@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlmodel import Session
 
 from .connection import build_database_url
@@ -37,3 +37,24 @@ def get_session() -> Iterator[Session]:
     """
     with Session(engine) as session:
         yield session
+
+
+def set_local_role(session: Session, role: str) -> None:
+    """Asume `role` para el RESTO de la transacción actual (se resetea al commit/rollback).
+
+    Llámalo como PRIMER statement de la transacción en cada punto de escritura que deba
+    correr como el **dueño de los datos** (p. ej. `data_owner`) — típico al escribir en el
+    medallion bajo gobernanza.
+
+    ⚠️ Usa `SET LOCAL ROLE`, **no** `SET ROLE`. Con un pool de conexiones, `SET ROLE` normal
+    queda **pegado** en la conexión física cuando vuelve al pool → la siguiente operación
+    hereda el rol sin querer. `SET LOCAL` se limita a la transacción y se resetea al cerrarla.
+
+    Ejemplo:
+        with Session(engine) as s:
+            set_local_role(s, "data_owner")
+            s.exec(...)      # corre como data_owner
+            s.commit()       # aquí el rol vuelve al usuario base de la conexión
+    """
+    safe = '"' + role.replace('"', '""') + '"'  # identificador Postgres citado
+    session.execute(text(f"SET LOCAL ROLE {safe}"))

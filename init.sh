@@ -85,6 +85,20 @@ if [ -f /.dockerenv ] || ! command -v docker >/dev/null 2>&1; then
 fi
 
 # ===== MODO HOST =====  (orquestación completa)
+# Preparar .env + secreto + nombres de DB ANTES de levantar (idempotente).
+bash scripts/bootstrap-env.sh
+
+# Preflight: el bautizo de la DB en el primer `up` es irreversible sin recrear el
+# volumen. Si DB_NAME/DB_USER siguen en placeholder, abortar con mensaje claro.
+_dbn="$(grep -E '^DB_NAME=' .env 2>/dev/null | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]')"
+_dbu="$(grep -E '^DB_USER=' .env 2>/dev/null | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]')"
+if [ "$_dbn" = "db_nombre_proyecto" ] || [ "$_dbu" = "admin_proyecto" ]; then
+  echo "✋ DB_NAME/DB_USER siguen en placeholder ($_dbn / $_dbu)." >&2
+  echo "   Postgres bautiza la base en el PRIMER 'up' y es irreversible sin recrear el volumen." >&2
+  echo "   Fija DB_NAME y DB_USER en .env antes de continuar." >&2
+  exit 1
+fi
+
 echo "▶ 1/4  Construyendo imágenes y levantando servicios (espera DB sana)…"
 $COMPOSE up -d --build --wait
 
