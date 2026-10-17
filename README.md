@@ -180,7 +180,7 @@ ClearNote_Dev/
 │
 ├── src/                         # ⚙️ Nivel 5 — implementación (cumple el spec)
 │   ├── backend/                 #   api (entrada) · schemas (DTOs) · use_cases (operación de negocio) · services (reutilizable)
-│   ├── database/                #   admin (SQL gobernanza) · app/{models,repositories} · analytics · migrations · connection · session
+│   ├── database/                #   admin (SQL gobernanza) · app/{models,repositories} · medallion (bronze/silver/gold) · migrations · connection · session
 │   ├── frontend/                #   views · components · state · layout · services · visuals
 │   ├── analytics/               #   ml · statistics · tracking
 │   └── utils/                   #   helpers genéricos y portables
@@ -223,6 +223,17 @@ Frontend → api/ → schemas/ → use_cases/ → repositories/ → models/ + DB
 
 Las **reglas de negocio** se aplican en 3 capas: el **modelo** (reglas de forma de un registro) → los
 **`use_cases`/`services`** (reglas reales, de proceso) → la **DB** (`CHECK`/RLS/triggers, como red de seguridad).
+
+### Frontera `database` ↔ `backend` (para no dudar dónde va cada cosa)
+
+- **`database/`** = *define y transforma el dato*: DDL (incluidos los modelos **SQLModel**, que **son**
+  definición de tabla), migraciones, SPs del medallion y **loaders** (archivo→`bronze`, "SP de etapa 0" en Python).
+- **`backend/`** = *comportamiento*: servicios, casos de uso, auth, orquestación.
+- **Enums con `CHECK`:** los valores canónicos viven en un módulo **puro** de `database` (sin SQLModel); el
+  **modelo** los usa en su `CheckConstraint` y `backend` los importa para agregarles comportamiento. La
+  dependencia solo va **`backend → database`**, nunca al revés.
+
+> Regla de bolsillo: *dato en Postgres → `database`; comportamiento de la app → `backend`.*
 
 ---
 
