@@ -1,5 +1,17 @@
 # 🏛️ ClearNote_Dev — Plantilla para desarrollo de aplicaciones (Spec-Driven)
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" alt="Python 3.14">
+  <img src="https://img.shields.io/badge/uv-package%20manager-DE5FE9" alt="uv">
+  <img src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 18">
+  <img src="https://img.shields.io/badge/Dev_Container-Docker-2496ED?logo=docker&logoColor=white" alt="Dev Container">
+  <img src="https://img.shields.io/badge/Spec--Driven-Development-0A7E8C" alt="SDD">
+  <img src="https://img.shields.io/badge/AI_agent-ready-10A37F" alt="AI agent ready">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT">
+</p>
+
+<p align="center"><em>Del spec al código — aplicaciones full-stack en Python, reproducibles y gobernadas.</em></p>
+
 Plantilla **insignia** para construir **aplicaciones full-stack en Python** de forma reproducible y portable
 (**VS Code + Dev Containers + Docker + `uv`**), siguiendo **Spec-Driven Development (SDD)**: el diseño y la
 documentación guían el código, no al revés.
