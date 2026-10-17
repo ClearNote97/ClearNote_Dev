@@ -121,14 +121,18 @@ services:
   #   env_file: [.env]
   #   environment:
   #     - DATABASE_URL=${DATABASE_URL}
+  #   profiles: ["reflex"]          # opcional: COMPOSE_PROFILES=reflex lo enciende
   #   depends_on:
-  #     db: { condition: service_healthy }
+  #     db: { condition: service_healthy, required: false }
   #   ports: ["3000:3000", "8000:8000"]
   #   volumes:
   #     - .:/workspaces/${APP_NAME:-clearnote}:cached
   #   networks: [clearnote_net]
   #   working_dir: /workspaces/${APP_NAME:-clearnote}
-  #   command: reflex run --env dev
+  #   # Sus deps (reflex, etc.) van en [dependency-groups] del pyproject (uv/PEP 735),
+  #   # NO en el core → el CI headless queda liviano. Un rebuild pierde los grupos
+  #   # opcionales, así que el servicio los REINSTALA al arrancar (self-sync):
+  #   command: sh -c "uv sync --group reflex && reflex run --env dev"
 
   # 5. FRONTEND DESKTOP/MOBILE RUNTIME (Flet - Opcional)
   # flet:

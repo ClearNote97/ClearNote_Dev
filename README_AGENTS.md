@@ -216,6 +216,7 @@ Con el flag de investigación encendido (§2), en `docs/` vive **todo lo que se 
 
 - **Reproducibilidad** — estándar universal, no exclusivo de datos: `uv.lock` versionado, semillas fijas, entorno determinista. Si `uv.lock` cambia, se commitea.
 - **Tests** — SIEMPRE fundamentales para la rigurosidad, en las tres ramas. Todo bug corregido lleva un **test que lo reproduce antes del fix**; cubrir happy path + edge case + caso vacío.
+- **Autorización — en el servicio, no solo en la UI.** Ocultar botones por rol es UX, no seguridad: el guard que valida el rol vive en el **servicio** (defensa en profundidad, UI oculta + servicio valida). Y nunca permitas desactivar o degradar al **último admin activo** (anti-lockout: te dejaría fuera del módulo de administración).
 
 ### Énfasis por tipo de trabajo (solo contexto: *dónde pongo el peso*)
 
