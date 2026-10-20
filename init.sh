@@ -81,6 +81,8 @@ if [ -f /.dockerenv ] || ! command -v docker >/dev/null 2>&1; then
     echo "  • Sin DB → se omiten gobernanza y migraciones (proyecto sin base de datos)."
   fi
   echo "✅ Entorno de desarrollo listo (modo devcontainer)."
+  echo
+  bash scripts/smoke-test.sh || echo "⚠️  smoke-test con hallazgos (no bloquea): revísalos arriba."
   exit 0
 fi
 
@@ -141,3 +143,6 @@ fi
 echo
 echo "✅ Base de datos lista. Estado de los servicios:"
 $COMPOSE ps
+
+echo
+bash scripts/smoke-test.sh || echo "⚠️  smoke-test con hallazgos (no bloquea): revísalos arriba."

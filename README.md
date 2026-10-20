@@ -105,15 +105,11 @@ git remote add origin https://github.com/tu_usuario/tu_repositorio.git
 git push -u origin main
 ```
 
-### 5. Prepara entorno y secreto *(una sola vez, en el host)*
-```bash
-cp -n .env.example .env
-[ -s secrets/db_password.txt ] || openssl rand -base64 24 > secrets/db_password.txt
-```
+### 5. Arranca
 
-### 6. Arranca
-
-Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → gobernanza → deps `uv` → migraciones.
+No hay que preparar nada a mano: `scripts/bootstrap-env.sh` deja listos `.env` y el secreto de la DB antes de
+levantar (lo llaman el *Reopen* y `./init.sh`). Ambos caminos corren `init.sh` (que **autodetecta** el contexto):
+build/DB → gobernanza → deps `uv` → migraciones → **`smoke-test`**.
 
 - **Dev (recomendado) — _Reopen in Container_:** el `postCreateCommand` ejecuta **`init.sh` solo**. La DB ya está
   arriba (por `depends_on`), así que aplica gobernanza + deps + migraciones. **No tienes que pegar nada.**
@@ -122,10 +118,19 @@ Ambos caminos corren `init.sh` (que **autodetecta** el contexto): build/DB → g
   ./init.sh
   ```
 
-Al terminar verás **`✅ ... listo`**.
+Al terminar verás **`✅ ... listo`** y el resumen del smoke test. Ambos se pueden correr a mano cuando quieras:
+```bash
+bash scripts/bootstrap-env.sh   # .env + secreto de la DB (idempotente)
+bash scripts/smoke-test.sh      # salud: carpeta↔APP_NAME, sintaxis, guards de DB, bootstrap, compose
+```
 
-**Antes de un proyecto real, ajusta en `.env`** (secciones `[ PROYECTO NUEVO ]`): `APP_NAME`, `DB_NAME`, `DB_USER`.
-La contraseña vive en `secrets/db_password.txt` (nunca se versiona) — reemplázala por la tuya.
+**Nombres del proyecto.** `APP_NAME` sale del **nombre de la carpeta**, y si `DB_NAME`/`DB_USER` siguen en
+placeholder se derivan de ella (`<carpeta>_db`, `<carpeta>_admin`). La contraseña se genera sola en
+`secrets/db_password.txt` (nunca se versiona).
+
+> ⚠️ **Si quieres otros nombres o tu propia contraseña de DB, fíjalos ANTES del primer `up`.** Postgres bautiza la
+> base, el usuario y la contraseña en su **primera** inicialización; cambiarlos después exige recrear el volumen.
+> Y si renombras la carpeta, `smoke-test.sh` te avisa (el mount y el workspace dejarían de coincidir).
 
 > **`APP_ENV` es el interruptor maestro** (`development` por defecto). En **dev** (devcontainer) `init.sh` corre solo. En
 > **prod**, el despliegue lo hace tu orquestador y la gobernanza se aplica con
@@ -203,12 +208,12 @@ ClearNote_Dev/
 │
 ├── data/                        # 📦 datos (contenido no versionado): seeds · storage/{raw,processed,exports,mlmodels} · tests
 ├── notebooks/                   # 🔬 exploración interactiva (se promueve a src/ o tests/)
-├── scripts/                     # 🔧 operación del proyecto (incluye nginx/)
+├── scripts/                     # 🔧 operación: bootstrap-env.sh · smoke-test.sh · nginx/
 ├── infra/                       # 🏗️ infraestructura: db/ (imagen Postgres 18 + pgaudit/pg_cron)
 ├── secrets/                     # 🔐 secretos de desarrollo (contenido en .gitignore)
 │
 ├── spec_agents/                 # 🤖 roster de agentes (spec agnóstico) → se materializa a .claude/ o .opencode
-├── init.sh                      # 🚀 un comando: build+up+wait → gobernanza → deps → migraciones
+├── init.sh                      # 🚀 un comando: build+up+wait → gobernanza → deps → migraciones → smoke-test
 ├── docker-compose.yml           # db (imagen propia) + app-dev + servicios opcionales comentados
 ├── AGENTS.md · CLAUDE.md        # entrada para agentes de IA → apuntan al contrato
 └── README_AGENTS.md             # contrato de colaboración (agnóstico de herramienta)

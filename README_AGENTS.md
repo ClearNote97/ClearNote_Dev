@@ -79,7 +79,10 @@ El arranque tiene **dos manos**: lo que haces **tú** (setup físico) y lo que h
 5. PUENTE de ejecución — docker ps. Si el contenedor no está arriba, te lo pido
    (no corro en el host). Distingo Estado 0 vs Estado N (§9).
 
-6. OBJETIVO concreto de la sesión — lo confirmamos y arrancamos.
+6. SALUD — corro `bash scripts/smoke-test.sh` (si el proyecto lo trae). Si hay ⚠️ o ❌
+   (p. ej. la carpeta se renombró y APP_NAME quedó viejo), te lo reporto ANTES de operar.
+
+7. OBJETIVO concreto de la sesión — lo confirmamos y arrancamos.
 ```
 
 ### Lo que haces tú (setup físico)
@@ -251,7 +254,7 @@ Esta es la diferencia clave al arrancar. **El comportamiento del `postCreateComm
    *preguntas de arranque* (tipo de interfaz y framework; ¿solo Python u otros lenguajes en algún borde?; DB/ORM;
    analítica; API; despliegue). En apps SDD las preguntas viven en `spec/constitution/03_stack.md` y se registran ahí;
    en plantillas de datos, el eje SQL/no-SQL (§2). *(Opcional: para conducir la interrogación puedes usar una skill
-   de este tipo — p. ej. `grill-me` en Helix.)*
+   de interrogatorio de requisitos de tu herramienta.)*
 3. Poblar el `.env` con las credenciales reales (nunca se versiona; ya está en `.gitignore`).
 4. Confirmar la convención de carpetas (§6): `sandbox/`, `tests/`, `output/` con su `README.md`, y `sandbox/*` ignorado salvo su README.
 5. (Opcional, según el agente) Sentar la **memoria del proyecto** (contexto persistente entre sesiones) — p. ej. en **[Helix](https://github.com/ftuga/helix_asisten)**, con `/helix-analiza`.

@@ -110,6 +110,8 @@ services:
   #   networks: [clearnote_net]
 
   # 4. FRONTEND WEB RUNTIME (Reflex - Opcional)
+  # Nota: Reflex descarga su runtime JS (bun) en el primer arranque y necesita `unzip`
+  # en la imagen (agrégalo al .devcontainer/Dockerfile si activas este servicio).
   # reflex:
   #   build:
   #     context: .
